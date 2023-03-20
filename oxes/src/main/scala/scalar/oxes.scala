@@ -36,6 +36,12 @@ def fetchOrder(): String =
     }
   log.info(result.toString)
 
+/*
+A function satisfies the structural concurrency property:
+ * if it is pure wrt to threading side-effects
+ * syntactic code structure bounds the lifetime of threads
+ */
+
 @main def main1(): Unit =
   log.info("Starting ...")
 
@@ -49,23 +55,9 @@ def fetchOrder(): String =
   log.info(result.toString())
 
 @main def main2(): Unit =
-  scoped {
-    class RateLimiter(perSecond: Int):
-      val s = new Semaphore(perSecond)
-      fork {
-        forever {
-          s.release(perSecond - s.availablePermits())
-          Thread.sleep(1000)
-        }
-      }
-
-      def run[T](t: => T): T =
-        s.acquire()
-        t
-
-    val rl = RateLimiter(3)
-    for (i <- 1 to 10) rl.run(log.info(s"Task$i"))
-  }
+  def task1(): String = { Thread.sleep(1000); log.info("Task 1 done"); "task1" }
+  def task2(): String = { Thread.sleep(500); log.info("Task 2 done"); "task2" }
+  println(raceResult(task1())(task2()))
 
 @main def main3(): Unit =
   val c = Channel[String]()
