@@ -4,7 +4,7 @@ import jdk.incubator.concurrent.StructuredTaskScope
 import org.slf4j.LoggerFactory
 import ox.Ox
 import ox.Ox.*
-import ox.channels.{orThrow, select, Channel, ChannelState, Sink, Source}
+import ox.channels.*
 
 import java.util.concurrent.Semaphore
 import scala.annotation.tailrec
@@ -58,6 +58,7 @@ A function satisfies the structural concurrency property:
   def task1(): String = { Thread.sleep(1000); log.info("Task 1 done"); "task1" }
   def task2(): String = { Thread.sleep(500); log.info("Task 2 done"); "task2" }
   println(raceResult(task1())(task2()))
+  Thread.sleep(1000)
 
 @main def main3(): Unit =
   val c = Channel[String]()
@@ -102,7 +103,7 @@ A function satisfies the structural concurrency property:
       def doConsume(acc: Int): Nothing =
         select(stringLengths, tick).orThrow match
           case Tick =>
-            log.info(s"Total length received during the last second: ${acc}")
+            log.info(s"Total length received during the last second: $acc")
             doConsume(0)
           case length: Int => doConsume(acc + length)
 
@@ -116,4 +117,15 @@ A function satisfies the structural concurrency property:
     log.info("Press any key to exit ...")
     // readline
     System.in.read()
+  }
+
+@main def main5(): Unit =
+  scoped {
+    val c = Channel[Int]()
+    fork {
+      @tailrec def produce(n: Int): Nothing = { c.send(n); produce(n + 1) }
+      produce(0)
+    }
+    c.transform(_.filter(_ % 2 == 0).take(10)).foreach(n => log.info(n.toString))
+    log.info("Done")
   }
